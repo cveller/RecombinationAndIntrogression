@@ -2,3 +2,4 @@ This repository contains code for the paper:
 "Recombination and selection against introgressed DNA"
 C Veller, NB Edelman, P Muralidhar, MA Nowak
 
+The simulations in the paper were run in SLiM 3 (messerlab.org/slim), but the code has been updated so that it is compatible with SLiM 4 (these updates are administrative only).

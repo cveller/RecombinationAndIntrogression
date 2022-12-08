@@ -11,7 +11,7 @@ Recombination rates between these loci are interpolated using the linkage maps p
 
 "additiveSelection_Autosomal_withNeutralLoci.slim" adds to this baseline setup 10,000 neutral loci evenly spaced along the physical genome (autosomes), and tracks ancestry at both these and the selected loci.  Can toggle human and D. melanogaster recombination processes.
 
-"additiveSelection_withSexChrom_withNeutralLoci.slim" adds sex chromosomes. Can toggle human and D. melanogaster recombination processes, as well as a stylized recombination process with ....
+"additiveSelection_withXChrom_noNeutralLoci.slim" adds an X chromosome to the baseline setup. Can toggle human and D. melanogaster recombination processes, as well as a stylized genome with one autosome and one X chromosome of equal size. For the stylized genome, each chromosome receives one recombination on average in females. The X does not recombine in males. Can toggle whether there is autosomal recombination in males (1 recombination on average) or not.
 
 "additiveSelection_Autosomal_withNeutralLoci_trackEachLocus.slim" ... for correlation
 

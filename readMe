@@ -2,14 +2,16 @@ This repository contains code for the paper:
 "Recombination and selection against introgressed DNA"
 C Veller, NB Edelman, P Muralidhar, MA Nowak
 
-The simulations in the paper were run in SLiM 3 (messerlab.org/slim), but the code has been updated so that it is compatible with SLiM 4 (these updates are administrative only).
+The simulations in the paper were run in SLiM 3 (messerlab.org/slim), but the code has been updated to be compatible with SLiM 4 (these updates are administrative only).
 
-Recombination rates are input from the .txt files in the folder "LinkageMaps". These recombination rates are interpolated from the linkage maps produced by Kong et al. 2010 (doi.org/10.1038/nature09525) for humans and Comeron et al. 2012 (doi.org/10.1371/journal.pgen.1002905) for Drosophila melanogaster.
+Recombination rates are inputted from the .txt files in the folder "LinkageMaps". These recombination rates are interpolated to the simulated loci (1,000 or 10,000) using the linkage maps produced by Kong et al. 2010 (doi.org/10.1038/nature09525) for humans and Comeron et al. 2012 (doi.org/10.1371/journal.pgen.1002905) for Drosophila melanogaster.
 
-"additiveSelection_Autosomal_noNeutralLoci.slim" is the baseline code, which simulates ....
+"additiveSelection_Autosomal_noNeutralLoci.slim" is the baseline code, which simulates the change in introgressed allele frequencies at 1,000 autosomal loci, at all of which the introgressed allele is deleterious. Can toggle human and D. melanogaster recombination processes.
 
-"additiveSelection_Autosomal_withNeutralLoci.slim" adds to this baseline setup 10,000 neutral loci evenly spaced along the physical genome, and tracks ancestry at both these and the selected loci.
+"additiveSelection_Autosomal_withNeutralLoci.slim" adds to this baseline setup 10,000 neutral loci evenly spaced along the physical genome (autosomes), and tracks ancestry at both these and the selected loci.  Can toggle human and D. melanogaster recombination processes.
 
-" " sex chromosomes
+"additiveSelection_withSexChrom_withNeutralLoci.slim" adds sex chromosomes. Can toggle human and D. melanogaster recombination processes, as well as a stylized recombination process with ....
 
-" " DMIs
+"additiveSelection_Autosomal_withNeutralLoci_trackEachLocus.slim" ... for correlation
+
+"DMIs_Autosomal_withNeutralLoci.slim" ... DMIs

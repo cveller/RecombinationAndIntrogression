@@ -1,0 +1,169 @@
+initialize() {
+
+defineConstant("species", "Human");	// "Human" or "Dmel" (Drosophila melanogaster)
+	defineConstant("mapFolder", "/Users/Who/folderWhereLinkageMapsAre/");
+	
+	defineConstant("resultsFolder", "/Users/Who/folderToWhereResultsShouldBeWritten/");
+	defineConstant("resultsFileNeutral", resultsFolder+"overallIntrogressedFractionNeutral.csv");
+	defineConstant("resultsFileSelected", resultsFolder+"overallIntrogressedFractionSelected.csv");
+	
+	defineConstant("N", 100000);
+	
+	defineConstant("F1_fraction", 0.1); // initial fraction of F1 hybrids
+	defineConstant("S", 0.2); // relative fitness reduction of F1 hybrids
+	
+	defineConstant("L", 10000);	// total # loci
+	defineConstant("DMIs", 500); // # DMI locus pairs
+	defineConstant("h0_prop", 1.0); // fraction of DMIs that are h0 type in language of Turelli & Orr 2000
+	// -- i.e., neither locus need be homozygous for the incompatible allele for an individual to suffer a fitnes loss
+	defineConstant("h1_prop", 0.0); // " " h1 type -- one of the two loci needs to be homozygous for the incompat. allele
+	defineConstant("h2_prop", 0.0); // " " h2 type -- both loci need to be homozyg for the incompatible allele
+	
+	defineConstant("h0s", asInteger(round(h0_prop*DMIs))); // # h0 DMIs
+	defineConstant("h1s", asInteger(round(h1_prop*DMIs ))); // # h1 DMIs
+	defineConstant("h2s", asInteger(round(h2_prop*DMIs))); // # h2 DMIs
+	
+	defineConstant("s0", S/DMIs); // fitness cost per expressed h0 DMI if both loci homozygous for incompat. allele
+	defineConstant("s1", 0.0); // " " h1
+	defineConstant("s2", 0.0); // " " h2
+	
+	// DEFINE GENOME; CREATE ANCESTRY LABELS
+	
+	initializeMutationRate(0);
+	initializeMutationType("m1", 0.5, "f", 0); // labels species 1 ancestry
+	m1.convertToSubstitution = F;
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, (L-1));
+	
+initializeSex("A");
+	
+// input male recombination
+
+ lines = readFile(mapFolder + "linkageMapForSLiM_" + species + "_Male_10kLoci.txt");
+ rates = NULL;
+for (line in lines)
+ {
+ components = strsplit(line, "\t");
+ rates = c(rates, asFloat(components[0]));
+ }
+ initializeRecombinationRate(rates, 1:(L-1), sex="M");
+ 
+ // input female recombination
+ 
+ lines = readFile(mapFolder + "linkageMapForSLiM_" + species + "_Female_10kLoci.txt");
+ rates = NULL;
+for (line in lines)
+ {
+ components = strsplit(line, "\t");
+ rates = c(rates, asFloat(components[0]));
+ }
+ initializeRecombinationRate(rates, 1:(L-1), sex="F");
+	
+	
+	
+	// CHOOSE LOCUS PAIR FOR EACH DMI; LABEL ITS DOMINANCE AND SELECTIVE EFFECT
+
+	twice_DMI = DMIs*2; // # loci involved in DMIs
+	loci = sample(0:(twice_DMI-1), twice_DMI); // permute these loci randomly, so that any labelling scheme of DMI loci within this permuted set is random
+	
+	// the first half of the permuted set are the "loci 1" in the DMI locus pairs, where the introgressed allele is the incompatible allele; the second half are the "loci 2", where the native allele is the incompatible allele
+	locus1temp = loci [0: asInteger(((twice_DMI/2)-1))];
+	locus2temp = loci [asInteger(twice_DMI/2): (twice_DMI-1)];
+	
+	locus1temp = (locus1temp*10)+5;
+	locus2temp = (locus2temp*10)+5;
+	
+	defineConstant("locus1", locus1temp);
+	defineConstant("locus2", locus2temp);
+	
+	// assign each DMI its homozygous fitness effect
+	defineConstant("S_temp", c(rep(s0,h0s), rep(s1,h1s), rep(s2,h2s)));
+	defineConstant("SMat", matrix(rep(S_temp,N),nrow=N,byrow=T));
+	
+	// assign each DMI its epistatic dominance coefficient
+	defineConstant("DMIdom", c(rep(0,h0s), rep(1,h1s), rep(2,h2s)));
+	defineConstant("DMIdomMat", matrix(rep(DMIdom,N),nrow=N,byrow=T));
+
+}
+
+mutationEffect(m1)
+{
+	return 1.0;
+}
+
+// create initial population with proportion F1_fraction F1 hybrids
+1 late (){
+	sim.addSubpop("p1", N);
+	num_hybs = asInteger(round(F1_fraction*N));
+	hybs = sample(p1.individuals, num_hybs);
+	
+	hybs.genome1.addNewMutation(m1, 0, 0:(L-1));
+
+}
+
+
+
+1: late()
+{
+	inds = p1.individuals;
+	
+	// CALCULATE FITNESS REDUCTION FROM DMIs
+	
+	count_alleles_locus1 = "asInteger(inds.genome1.containsMarkerMutation(m1, locus1[applyValue])) + asInteger(inds.genome2.containsMarkerMutation(m1, locus1[applyValue]));";
+	count_alleles_locus2 = "asInteger(inds.genome1.containsMarkerMutation(m1, locus2[applyValue])) + asInteger(inds.genome2.containsMarkerMutation(m1, locus2[applyValue]));";
+	
+	// how many introgressed alleles at the DMI loci 1?
+	alleles_locus1 = sapply(0:(DMIs-1), count_alleles_locus1);
+	alleles_locus1 = matrix(alleles_locus1, nrow = N);
+	
+	// how many introgressed alleles at the DMI loci 2?
+	alleles_locus2 = sapply(0:(DMIs-1), count_alleles_locus2);
+	alleles_locus2 = matrix(alleles_locus2, nrow = N);
+	
+	// how many incompatible alleles at the DMI loci 1 and 2?
+	incompatibles_locus1 = alleles_locus1;
+	incompatibles_locus2 = 2-alleles_locus2;
+	
+	// ACROSS ALL DMIs:
+	 
+	// for each DMI, does the individual have at least one incompatible allele at each of the two loci?
+	w = asInteger((incompatibles_locus1*incompatibles_locus2)>0);
+	// how many incompatible alleles total?
+	q = incompatibles_locus1+incompatibles_locus2;
+	// enough to suffer a fitness reduction from the DMI, given its epistatic dominance coefficient?
+	check_dominance = asInteger(q > (DMIdomMat+1));
+	// given all these considerations, does the individual suffer a fitness reduction or not?
+	suffer = w*check_dominance;
+	// if so, what fraction of the total homozygous fitness cost of the DMI does the individual suffer, given the number of incompatible alleles they carry
+	suffer_how_much = suffer*q/2;
+	
+	// what is the fitness reduction from each DMI, given its homozygous fitness cost?
+	fitness_loss_per_DMI = SMat*suffer_how_much;
+	
+	// sum these fitness costs across all DMIs
+	fitness_loss_DMIs = apply(fitness_loss_per_DMI, 0, "sum(applyValue);");
+	
+	// assign individual's fitness
+	inds.fitnessScaling = 1 - fitness_loss_DMIs ;
+	
+	// calculate mean introgressed fraction across all loci
+	inds_introgressed = inds.countOfMutationsOfType(m1);
+	introgFracNeutral = mean(inds_introgressed) / (2*L);
+	
+	writeFile(resultsFileNeutral, ""+introgFracNeutral, append=T);
+	
+	// calculate mean introgressed fraction at DMI loci 1 (where introgressed allele is incompatible)
+	sum_per_individual_loci_1 = apply(alleles_locus1, 0, "sum(applyValue);");
+	dmi_del_intro = mean(sum_per_individual_loci_1)/(2*DMIs);
+	
+//	sum_per_individual_loci_2 = apply(alleles_locus2, 0, "sum(applyValue);");
+//	overall_across_DMI_sum = sum_per_individual_loci_1+sum_per_individual_loci_2;
+//	
+//	dmi_all_intro = mean(overall_across_DMI_sum)/(4*DMIs);
+	
+	writeFile(resultsFileSelected, ""+dmi_del_intro, append=T);
+
+}
+
+
+2000 late(){sim.simulationFinished();}

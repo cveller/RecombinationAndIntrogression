@@ -1,0 +1,193 @@
+initialize() {
+
+	defineConstant("species", "Human");	// "Human" or "Dmel" (Drosophila melanogaster)
+	
+	if (species=="stylized") { // stylized genome of one autosome and one X chrom, same size
+	defineConstant("MaleRec", 0); // autosomal recombination in the heterogametic sex?
+	}
+	
+	defineConstant("mapFolder", "/Users/Who/folderWhereLinkageMapsAre/");
+	
+	defineConstant("resultsFolder", "/Users/Who/folderToWhereResultsShouldBeWritten/");
+	defineConstant("resultsFileAutosomes", resultsFolder+"overallIntrogressedFractionAutosomes.csv");
+	defineConstant("resultsFileXChrom", resultsFolder+"overallIntrogressedFractionXChrom.csv");
+	
+	defineConstant("N", 100000);	// population size
+	defineConstant("L", 1000);		// total number of loci across autosomes and X chromosome
+	defineConstant("r", 1/((L/2) - 1)); // for case of stylized genome, per-locus recombination rate
+													// that ensures, on average, 1 recombination per chromosome
+	defineConstant("S", 0.4);
+	defineConstant("hyb_frac", 0.1);	// fraction of F1 hybrids initially
+	defineConstant("hybs", asInteger(round(hyb_frac*N))); // # of F1 hybrids initially
+
+	// specify number of loci on the X, proportional to its fraction of the physical (bp) genome
+	// -- will depend on the species
+	if (species=="Human")
+	{
+	defineConstant("Lx", 51);	//  51/1000 loci
+	}
+	if (species=="Dmel")
+	{
+	defineConstant("Lx", 176);	//  176/1000 loci
+	}
+	if (species=="stylized")
+	{
+	defineConstant("Lx", 500);	// X chromosome is same size as autosome, so 500/1000 loci
+	}
+	
+	// # autosomal loci = L - # loci on X
+	defineConstant("La", asInteger(L-Lx));
+	
+	initializeMutationRate(0);
+		
+	initializeMutationType("m1", 0.5, "f", 0.0);	// marks introgressed alleles on the autosomes
+	initializeMutationType("m2", 0.5, "f", 0.0);	// marks introgressed alleles on the X
+	
+	m1.convertToSubstitution = F;
+	m2.convertToSubstitution = F;
+	
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElementType("g2", m2, 1.0);
+	
+	initializeGenomicElement(g1, 0, (La-1));	// the autosomal genome
+	initializeGenomicElement(g2, La, L-1);		// the X chromosome
+	
+	initializeMutationType("m3", 1.0, "f", 0.0); // marks the Y chromosome -- the X chromosome doesn't have any recombination in males here because we keep the Y as a blank haplotype
+	
+	initializeSex("A");
+	
+	// input recombination rates
+	
+	if (species=="stylized") { // stylized genome
+	ends = c((La-1), La, (L-1));
+	female_rates = c(r, 0.5, r);
+	initializeRecombinationRate(female_rates, ends, sex="F");
+		if (MaleRec==1) {
+		male_rates = c(r, 0.5, 0);
+		}
+		else {
+		male_rates = c(0, 0.5, 0);
+		}
+	initializeRecombinationRate(male_rates, ends, sex="M");
+	}
+	
+	else { // human or D. melanogaster
+	
+	// input male recombination
+	lines = readFile(mapFolder + "linkageMapForSLiM_" + species + "_Male_1kLoci_withX.txt");
+	rates = NULL;
+	for (line in lines)
+	{
+		components = strsplit(line, "\t");
+		rates = c(rates, asFloat(components[0]));
+	}
+	initializeRecombinationRate(rates, 1:(L-1), sex="M");
+	
+	// input female recombination
+	lines = readFile(mapFolder + "linkageMapForSLiM_" + species + "_Female_1kLoci_withX.txt");
+	rates = NULL;
+	for (line in lines)
+	{
+		components = strsplit(line, "\t");
+		rates = c(rates, asFloat(components[0]));
+	}
+	initializeRecombinationRate(rates, 1:(L-1), sex="F");
+	
+	}
+
+}
+
+//This adds a marker that labels one of the X chromosomes as a Y in males
+1 late(){
+	sim.addSubpop("p1", N);
+	i = p1.individuals;
+	i[i.sex == "M"].genome2.addNewMutation(m3, 0.0, L-1);
+}
+
+1 late() {
+	
+	female_hybs = asInteger(round(hybs / 2));
+	male_hybs = asInteger(round(hybs / 2));
+	allFemales = p1.individuals[p1.individuals.sex == "F"];
+	allMales = p1.individuals[p1.individuals.sex == "M"];
+	
+	sampledFemales = sample(allFemales, female_hybs);
+	sampledMales = sample(allMales, male_hybs);
+	
+	males_with_X = round(male_hybs/2);	// initial number of F1 males with an introgressed X
+	
+	sampledMales_with_X = sampledMales[0:(males_with_X - 1)];
+	sampledMales_no_X = sampledMales[males_with_X: (male_hybs-1)];
+	
+	//adding mutations to F1 females
+	sampledFemales.genome1.addNewMutation(m1, 0, 0:(La-1));
+	sampledFemales.genome1.addNewMutation(m2, 0, La:(L-1));
+	
+	//adding mutations to F1 males who DO carry an introgressed X
+	sampledMales_with_X.genome1.addNewMutation(m1, 0, 0:(La-1));
+	sampledMales_with_X.genome1.addNewMutation(m2, 0, La:(L-1));
+	
+	//adding mutations to F1 males who do NOT carry an introgressed X
+	sampledMales_no_X.genome1.addNewMutation(m1, 0, 0:(La-1));
+
+}
+
+
+
+1: late() {
+	inds = p1.individuals;
+	
+	inds_introgressed_autosome = inds.countOfMutationsOfType(m1);
+	inds_introgressed_X = inds.countOfMutationsOfType(m2);
+	
+	mean_intro_autosome = mean(inds_introgressed_autosome)/(2*La);
+	mean_intro_X = mean(inds_introgressed_X)/(1.5*Lx);
+	
+	writeFile(resultsFileXChrom, ""+mean_intro_X, append=T);
+	writeFile(resultsFileAutosomes, ""+mean_intro_autosome, append=T);
+
+}
+
+//removes default fitness effects from mutations occuring on the autosomes and the X
+mutationEffect(m1) {return 1.0;}
+mutationEffect(m2) {return 1.0;}
+
+
+2000 early() {sim.simulationFinished(); }
+
+
+// Determine each individual's fitness
+fitnessEffect() {
+	
+	if(individual.sex == "F") {
+		
+		autosome_count = sum(c(individual.genome1,individual.genome2).countOfMutationsOfType(m1));
+		X_count = sum(c(individual.genome1,individual.genome2).countOfMutationsOfType(m2));
+		introgressed = autosome_count + X_count;
+		
+		return (1.0 - (introgressed/(2*L))*S);
+	
+	}
+	
+	else {
+	
+		autosome_count = sum(c(individual.genome1,individual.genome2).countOfMutationsOfType(m1));
+		X_count = individual.genome1.countOfMutationsOfType(m2);
+		introgressed = autosome_count + X_count;
+		
+		return (1.0 - (introgressed/(2*La + Lx))*S);
+	}
+
+}
+
+
+//this makes sure that you can't get a female child with a Y.
+
+modifyChild() {
+	if (child.sex == "F")
+		return !child.genome2.containsMarkerMutation(m3, L-1);
+	else
+		return child.genome2.containsMarkerMutation(m3, L-1);
+}
+
+

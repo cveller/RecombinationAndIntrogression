@@ -1,0 +1,93 @@
+initialize() {
+
+	defineConstant("species", "Human");	// "Human" or "Dmel" (Drosophila melanogaster)
+	defineConstant("mapFolder", "/Users/Who/folderWhereLinkageMapsAre/");
+	
+	defineConstant("resultsFolder", "/Users/Who/folderToWhereResultsShouldBeWritten/");
+	defineConstant("resultsFileNeutral", resultsFolder+"overallIntrogressedFractionNeutral.csv");
+	defineConstant("resultsFileSelected", resultsFolder+"overallIntrogressedFractionSelected.csv");
+	
+	defineConstant("L", 10000);	// total number of loci
+	defineConstant("Ls", 1000);	// number of loci at which introgressed allele is deleterious
+	
+	defineConstant("S", 0.4);	// strength of selection against introgresed ancestry:
+										// relative fitness reduction of a 100% introgressed genome
+	defineConstant("N", 100000);	// population size
+	defineConstant("hyb_frac", 0.1);	// fraction of F1 hybrids in initial admixed population
+	defineConstant("hybs", asInteger(round(hyb_frac*N)));	// number of F1 hybrids
+	initializeMutationRate(0);
+   initializeMutationType("m1", 0.5, "f", 0);	// marks the introgressed allele at each selected locus
+   initializeMutationType("m2", 0.5, "f", 0);	// marks the introgressed allele at each locus
+   m1.convertToSubstitution = F;
+   m2.convertToSubstitution = F;
+   initializeGenomicElementType("g1", c(m1,m2), c(1.0,1.0));
+	initializeGenomicElement(g1, 0, L-1);
+	
+	initializeSex("A");
+	
+// input male recombination
+
+ lines = readFile(mapFolder + "linkageMapForSLiM_" + species + "_Male_10kLoci.txt");
+ rates = NULL;
+for (line in lines)
+ {
+ components = strsplit(line, "\t");
+ rates = c(rates, asFloat(components[0]));
+ }
+ initializeRecombinationRate(rates, 1:(L-1), sex="M");
+ 
+ // input female recombination
+ 
+ lines = readFile(mapFolder + "linkageMapForSLiM_" + species + "_Female_10kLoci.txt");
+ rates = NULL;
+for (line in lines)
+ {
+ components = strsplit(line, "\t");
+ rates = c(rates, asFloat(components[0]));
+ }
+ initializeRecombinationRate(rates, 1:(L-1), sex="F");
+}
+
+
+1 early() {
+	sim.addSubpop("p1", N);
+}
+
+
+// determine each individual's fitness
+
+fitnessEffect() {
+ introgressed = sum(c(individual.genome1,individual.genome2).countOfMutationsOfType(m1));
+return 1.0 - (introgressed/(2*Ls))*S;
+}
+
+
+// construct initial population consisting of [#hybs F1 hybrids and N-hybs individuals with zero introgressed ancestry] by assigning to #hybs individuals, on a single haploid genome: the m2 mutation at each of the L total loci, and the m1 mutation at each of Ls loci evenly spaced among the L total loci
+
+1 late() {
+	allIndividuals = p1.individuals;
+	sampledIndividuals = sample(p1.individuals, hybs);
+   sampledIndividuals.genome1.addNewMutation(m1, 0, asInteger( (0:(Ls-1))*(L/Ls) + (L/Ls)/2 ) );
+   // intersperses deleterious loci evenly amongst all the loci
+   sampledIndividuals.genome1.addNewMutation(m2, 0, asInteger((0:(L-1))));
+	}
+	
+
+// output the population's overall introgressed fraction at all sites and at selected sites	
+
+1: late() {
+   inds = p1.individuals;
+   
+   inds_introgressed_neutral = inds.countOfMutationsOfType(m2);
+   introgFracNeutral = mean(inds_introgressed_neutral)/(2*L);
+   
+   inds_introgressed_selected = inds.countOfMutationsOfType(m1);
+   introgFracSelected = mean(inds_introgressed_selected)/(2*Ls);
+   
+   writeFile(resultsFileNeutral, ""+introgFracNeutral, append=T); 
+   writeFile(resultsFileSelected, ""+introgFracSelected, append=T);   
+   
+   }	
+	
+
+2000 early() { sim.simulationFinished(); } 

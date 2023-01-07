@@ -14,6 +14,8 @@ defineConstant("species", "Human");	// "Human" or "Dmel" (Drosophila melanogaste
 	
 	defineConstant("L", 10000);	// total # loci
 	defineConstant("DMIs", 500); // # DMI locus pairs
+	defineConstant("L_DMI", 2*DMIs); // # loci involved in DMIs
+	
 	defineConstant("h0_prop", 1.0); // fraction of DMIs that are h0 type in language of Turelli & Orr 2000
 	// -- i.e., neither locus need be homozygous for the incompatible allele for an individual to suffer a fitnes loss
 	defineConstant("h1_prop", 0.0); // " " h1 type -- one of the two loci needs to be homozygous for the incompat. allele
@@ -63,16 +65,15 @@ for (line in lines)
 	
 	// CHOOSE LOCUS PAIR FOR EACH DMI; LABEL ITS DOMINANCE AND SELECTIVE EFFECT
 
-	twice_DMI = DMIs*2; // # loci involved in DMIs
-	loci = sample(0:(twice_DMI-1), twice_DMI); // permute these loci randomly, so that any labelling scheme of DMI loci within this permuted set is random
+	loci = sample(0:(L_DMI-1), L_DMI); // permute these loci randomly, so that any labelling scheme of DMI loci within this permuted set is random
 	
 	// the first half of the permuted set are the "loci 1" in the DMI locus pairs, where the introgressed allele is the incompatible allele; the second half are the "loci 2", where the native allele is the incompatible allele
-	locus1temp = loci [0: asInteger(((twice_DMI/2)-1))];
-	locus2temp = loci [asInteger(twice_DMI/2): (twice_DMI-1)];
+	locus1temp = loci [0: (DMIs-1)];
+	locus2temp = loci [DMIs: (L_DMI-1)];
 	
 	// space the DMI loci evenly throughout the genome
-	locus1temp = asInteger( (locus1temp*(L/twice_DMI))+ 0.5*(L/twice_DMI) );
-	locus2temp = asInteger( (locus2temp*(L/twice_DMI))+ 0.5*(L/twice_DMI) );
+	locus1temp = asInteger( (locus1temp*(L/L_DMI))+ 0.5*(L/L_DMI) );
+	locus2temp = asInteger( (locus2temp*(L/L_DMI))+ 0.5*(L/L_DMI) );
 	
 	defineConstant("locus1", locus1temp);
 	defineConstant("locus2", locus2temp);

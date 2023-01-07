@@ -70,8 +70,9 @@ for (line in lines)
 	locus1temp = loci [0: asInteger(((twice_DMI/2)-1))];
 	locus2temp = loci [asInteger(twice_DMI/2): (twice_DMI-1)];
 	
-	locus1temp = (locus1temp*10)+5;
-	locus2temp = (locus2temp*10)+5;
+	// space the DMI loci evenly throughout the genome
+	locus1temp = asInteger( (locus1temp*(L/twice_DMI))+ 0.5*(L/twice_DMI) );
+	locus2temp = asInteger( (locus2temp*(L/twice_DMI))+ 0.5*(L/twice_DMI) );
 	
 	defineConstant("locus1", locus1temp);
 	defineConstant("locus2", locus2temp);
